@@ -1,0 +1,3 @@
+[submodule "ch32v20x"]
+	path = ch32v20x
+	url = https://github.com/openwch/ch32v20x.git
