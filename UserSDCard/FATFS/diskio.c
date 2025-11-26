@@ -9,65 +9,72 @@
 #include <string.h>
 
 // SD card SPI commands
-#define CMD0 (0x40 + 0)    // GO_IDLE_STATE
+#define CMD0 (0x40 + 0) // GO_IDLE_STATE
 
-#define CMD17 (0x40 + 17)  // READ_SINGLE_BLOCK
-#define CMD24 (0x40 + 24)  // WRITE_BLOCK
+#define CMD17 (0x40 + 17) // READ_SINGLE_BLOCK
+#define CMD24 (0x40 + 24) // WRITE_BLOCK
 #define CMD55 (0x40 + 55)
 #define CMD58 (0x40 + 58)
 #define ACMD41 (0x40 + 41)
-#define CMD8 (0x40 + 8)  // SEND_IF_COND
+#define CMD8 (0x40 + 8) // SEND_IF_COND
 
-#define SD_CS_HIGH() GPIO_SetBits (GPIOA, GPIO_Pin_3)
-#define SD_CS_LOW() GPIO_ResetBits (GPIOA, GPIO_Pin_3)
+#define SD_CS_HIGH() GPIO_SetBits(GPIOA, GPIO_Pin_3)
+#define SD_CS_LOW() GPIO_ResetBits(GPIOA, GPIO_Pin_3)
 
-static uint8_t spi_send (uint8_t data) {
-    while (SPI_I2S_GetFlagStatus (SPI1, SPI_I2S_FLAG_TXE) == RESET)
+static uint8_t spi_send(uint8_t data)
+{
+    while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET)
         ;
-    SPI_I2S_SendData (SPI1, data);
-    while (SPI_I2S_GetFlagStatus (SPI1, SPI_I2S_FLAG_RXNE) == RESET)
+    SPI_I2S_SendData(SPI1, data);
+    while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET)
         ;
-    return SPI_I2S_ReceiveData (SPI1);
+    return SPI_I2S_ReceiveData(SPI1);
 }
 
-static void spi_send_multi (const uint8_t *buff, uint32_t len) {
-    while (len--) spi_send (*buff++);
+static void spi_send_multi(const uint8_t *buff, uint32_t len)
+{
+    while (len--)
+        spi_send(*buff++);
 }
 
-static uint8_t sd_send_cmd (uint8_t cmd, uint32_t arg) {
+static uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg)
+{
     uint8_t res, n;
 
     SD_CS_HIGH();
-    spi_send (0xFF);
+    spi_send(0xFF);
     SD_CS_LOW();
-    spi_send (0xFF);
+    spi_send(0xFF);
 
-    spi_send (cmd);
-    spi_send ((uint8_t)(arg >> 24));
-    spi_send ((uint8_t)(arg >> 16));
-    spi_send ((uint8_t)(arg >> 8));
-    spi_send ((uint8_t)arg);
+    spi_send(cmd);
+    spi_send((uint8_t)(arg >> 24));
+    spi_send((uint8_t)(arg >> 16));
+    spi_send((uint8_t)(arg >> 8));
+    spi_send((uint8_t)arg);
 
     uint8_t crc = 0x01;
     if (cmd == CMD0)
         crc = 0x95;
     if (cmd == CMD8)
         crc = 0x87;
-    spi_send (crc);
+    spi_send(crc);
 
     n = 10;
-    do {
-        res = spi_send (0xFF);
+    do
+    {
+        res = spi_send(0xFF);
     } while ((res & 0x80) && --n);
 
     return res;
 }
 
-static int sd_wait_ready (void) {
+static int sd_wait_ready(void)
+{
     uint8_t res;
     uint32_t tmr = 50000;
-    do {
-        res = spi_send (0xFF);
+    do
+    {
+        res = spi_send(0xFF);
         if (res == 0xFF)
             return 1;
     } while (--tmr);
@@ -78,44 +85,55 @@ static int sd_wait_ready (void) {
 /* Initialize Disk Drive                                                 */
 /*-----------------------------------------------------------------------*/
 
-DSTATUS disk_initialize (void) {
+DSTATUS disk_initialize(void)
+{
     DSTATUS stat = STA_NOINIT;
     uint8_t i, resp;
 
     SD_CS_HIGH();
-    for (i = 0; i < 10; i++) spi_send (0xFF);  // 80 dummy clocks
+    for (i = 0; i < 10; i++)
+        spi_send(0xFF); // 80 dummy clocks
 
-    if (sd_send_cmd (CMD0, 0) == 0x01) {
-        if (sd_send_cmd (CMD8, 0x1AA) == 0x01) {
+    if (sd_send_cmd(CMD0, 0) == 0x01)
+    {
+        if (sd_send_cmd(CMD8, 0x1AA) == 0x01)
+        {
             // SDC Ver2+
-            for (i = 0; i < 4; i++) spi_send (0xFF);  // Get trailing return value of R7 resp
+            for (i = 0; i < 4; i++)
+                spi_send(0xFF); // Get trailing return value of R7 resp
             // Wait for leaving idle state (ACMD41 with HCS bit)
-            do {
-                resp = sd_send_cmd (CMD55, 0);
-                resp = sd_send_cmd (ACMD41, 0x40000000);
+            do
+            {
+                resp = sd_send_cmd(CMD55, 0);
+                resp = sd_send_cmd(ACMD41, 0x40000000);
             } while (resp != 0x00);
-        } else {
+        }
+        else
+        {
             // SDC Ver1 or MMC
-            for (i = 0; i < 4; i++) spi_send (0xFF);  // Get trailing return value of R7 resp
+            for (i = 0; i < 4; i++)
+                spi_send(0xFF); // Get trailing return value of R7 resp
             // Wait for leaving idle state
-            do {
-                resp = sd_send_cmd (CMD55, 0);
-                resp = sd_send_cmd (ACMD41, 0);
+            do
+            {
+                resp = sd_send_cmd(CMD55, 0);
+                resp = sd_send_cmd(ACMD41, 0);
             } while (resp != 0x00);
         }
         // SD card is in idle state
-        for (i = 0; i < 100; i++) {
-            resp = sd_send_cmd (CMD55, 0);
-            resp = sd_send_cmd (ACMD41, 0x00000000);
+        for (i = 0; i < 100; i++)
+        {
+            resp = sd_send_cmd(CMD55, 0);
+            resp = sd_send_cmd(ACMD41, 0x00000000);
             if (resp == 0x00)
                 break;
         }
         if (resp == 0x00)
-            stat = 0;  // Initialization succeeded
+            stat = 0; // Initialization succeeded
     }
 
     SD_CS_HIGH();
-    spi_send (0xFF);
+    spi_send(0xFF);
 
     return stat;
 }
@@ -124,35 +142,42 @@ DSTATUS disk_initialize (void) {
 /* Read Partial Sector                                                   */
 /*-----------------------------------------------------------------------*/
 
-DRESULT disk_readp (
+DRESULT disk_readp(
     BYTE *buff,   /* Pointer to the destination object */
     DWORD sector, /* Sector number (LBA) */
     UINT offset,  /* Offset in the sector */
     UINT count    /* Byte count (bit15:destination) */
-) {
+)
+{
     DRESULT res = RES_ERROR;
     uint8_t token;
     uint16_t bc;
 
-    if (sd_send_cmd (CMD17, sector) == 0x00) {
+    if (sd_send_cmd(CMD17, sector) == 0x00)
+    {
         // Wait for data token (0xFE)
-        for (bc = 0; bc < 10000; bc++) {
-            token = spi_send (0xFF);
+        for (bc = 0; bc < 10000; bc++)
+        {
+            token = spi_send(0xFF);
             if (token == 0xFE)
                 break;
         }
-        if (token == 0xFE) {
+        if (token == 0xFE)
+        {
             // Skip bytes before offset
-            for (bc = 0; bc < offset; bc++) spi_send (0xFF);
+            for (bc = 0; bc < offset; bc++)
+                spi_send(0xFF);
             // Read requested bytes
-            for (bc = 0; bc < count; bc++) *buff++ = spi_send (0xFF);
+            for (bc = 0; bc < count; bc++)
+                *buff++ = spi_send(0xFF);
             // Skip remaining bytes + CRC
-            for (bc = 0; bc < (512 - offset - count + 2); bc++) spi_send (0xFF);
+            for (bc = 0; bc < (512 - offset - count + 2); bc++)
+                spi_send(0xFF);
             res = RES_OK;
         }
     }
     SD_CS_HIGH();
-    spi_send (0xFF);
+    spi_send(0xFF);
     return res;
 }
 
@@ -164,40 +189,49 @@ static uint16_t wp_offset = 0;
 static uint8_t wp_buffer[512];
 static DWORD wp_sector = 0;
 
-DRESULT disk_writep (
+DRESULT disk_writep(
     const BYTE *buff, /* Pointer to the data to be written, NULL:Initiate/Finalize write operation */
     DWORD sc          /* Sector number (LBA) or Number of bytes to send */
-) {
+)
+{
     DRESULT res = RES_ERROR;
 
-    if (!buff) {
-        if (sc) {
+    if (!buff)
+    {
+        if (sc)
+        {
             // Initiate write process
             wp_offset = 0;
             wp_sector = sc;
-            memset (wp_buffer, 0xFF, sizeof (wp_buffer));
+            memset(wp_buffer, 0xFF, sizeof(wp_buffer));
             res = RES_OK;
-        } else {
+        }
+        else
+        {
             // Finalize write process
-            if (sd_send_cmd (CMD24, wp_sector) == 0x00) {
-                spi_send (0xFF);
-                spi_send (0xFE);  // Data token
-                spi_send_multi (wp_buffer, 512);
-                spi_send (0xFF);  // Dummy CRC
-                spi_send (0xFF);
+            if (sd_send_cmd(CMD24, wp_sector) == 0x00)
+            {
+                spi_send(0xFF);
+                spi_send(0xFE); // Data token
+                spi_send_multi(wp_buffer, 512);
+                spi_send(0xFF); // Dummy CRC
+                spi_send(0xFF);
                 // Wait for data response
-                uint8_t resp = spi_send (0xFF);
-                if ((resp & 0x1F) == 0x05) {
+                uint8_t resp = spi_send(0xFF);
+                if ((resp & 0x1F) == 0x05)
+                {
                     if (sd_wait_ready())
                         res = RES_OK;
                 }
             }
             SD_CS_HIGH();
-            spi_send (0xFF);
+            spi_send(0xFF);
         }
-    } else {
+    }
+    else
+    {
         // Send data to the disk (buffered)
-        memcpy (&wp_buffer[wp_offset], buff, sc);
+        memcpy(&wp_buffer[wp_offset], buff, sc);
         wp_offset += sc;
         res = RES_OK;
     }
