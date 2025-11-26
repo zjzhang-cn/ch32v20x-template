@@ -115,7 +115,7 @@ void FATFSTEST()
         // Open and read file with speed measurement
         UINT br;
         BYTE buffer[512]; // Larger buffer for better speed measurement
-        res = pf_open("BOOTCODE.BIN");
+        res = pf_open("KERNEL8.IMG");
         printf("pf_open: %d\r\n", res);
         if (res == FR_OK)
         {
@@ -129,9 +129,9 @@ void FATFSTEST()
                 if (res != FR_OK)
                     break;
                 total_bytes += br;
-
+                led_blinking_task();
                 // Print first 256 bytes in hex format
-                if (total_bytes <= 256)
+                if (total_bytes <= 512)
                 {
                     for (UINT i = 0; i < br && (total_bytes - br + i) < 256; i++)
                     {
@@ -161,18 +161,9 @@ void FATFSTEST()
     }
 }
 
-static uint32_t blink_interval_ms = 1000;
-
 void led_blinking_task(void)
 {
-    static uint32_t start_ms = 0;
     static bool led_state = false;
-
-    // Blink every interval ms
-    if (board_millis() - start_ms < blink_interval_ms)
-        return; // not enough time
-    start_ms += blink_interval_ms;
-
     board_led_write(led_state);
     led_state = 1 - led_state; // toggle
 }
@@ -200,10 +191,14 @@ int main(void)
     SPI1_Init(); // Initialize SPI1
 
     FATFSTEST();
-
+    uint32_t blink_interval_ms = 1000;
+    uint32_t start_ms = 0;
     while (1)
     {
-
+        // Blink every interval ms
+        if (board_millis() - start_ms < blink_interval_ms)
+            continue; // not enough time
+        start_ms += blink_interval_ms;
         led_blinking_task();
     }
 }
