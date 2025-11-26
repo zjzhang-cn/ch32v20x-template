@@ -34,7 +34,7 @@ DEPS=$(CSOURCES:$(TOP)/%.c=$(BDIR)/%.d)
 
 # Arch and target specified flags
 # - GCC 12: use `-march=rv32imac_zicsr` instead of `-march=rv32imac`
-ARCH_FLAGS	:= -march=rv32imac -mabi=ilp32 \
+ARCH_FLAGS	:= -march=rv32imac_zicsr -mabi=ilp32 \
 			-msmall-data-limit=8 \
 			-mno-save-restore \
 			-fmessage-length=0 \
