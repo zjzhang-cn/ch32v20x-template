@@ -88,6 +88,20 @@ uint32_t board_millis(void)
 }
 
 /**
+ * @brief  毫秒级延时函数
+ * @note   使用系统滴答定时器实现精确的毫秒级延时
+ * @param  ms 延时时间，单位：毫秒
+ * @retval 无
+ */
+void delay_ms(uint32_t ms)
+{
+  uint32_t start = board_millis();
+  while ((board_millis() - start) < ms) {
+    // 等待指定的毫秒数
+  }
+}
+
+/**
  * @brief  开发板初始化函数
  * @note   此函数用于初始化CH32V208开发板的基本功能
  *         包括中断配置、系统滴答定时器、延时功能和串口通信

@@ -91,6 +91,7 @@ void FATFSTEST()
         {
             break;
         }
+        delay_ms(500); // Wait before retrying
     }
 
     if (res != FR_OK)
@@ -115,7 +116,7 @@ void FATFSTEST()
         // Open and read file with speed measurement
         UINT br;
         BYTE buffer[512]; // Larger buffer for better speed measurement
-        res = pf_open("KERNEL8.IMG");
+        res = pf_open("START4CD.ELF");
         printf("pf_open: %d\r\n", res);
         if (res == FR_OK)
         {
@@ -188,8 +189,8 @@ int main(void)
     // Add delay for system stabilization after power-up
     printf("System initializing...\r\n");
 
-    SPI1_Init(); // Initialize SPI1
-
+    SPI1_Init();   // Initialize SPI1
+    delay_ms(100); // Wait for SD card to stabilize
     FATFSTEST();
     uint32_t blink_interval_ms = 1000;
     uint32_t start_ms = 0;

@@ -4,13 +4,12 @@
 
 #include "diskio.h"
 #include "ch32v20x_spi.h"
-#include "debug.h"
 #include <stdio.h>
 #include <string.h>
-
+#include "family.h"
 // SD card SPI commands
 #define CMD0 (0x40 + 0) // GO_IDLE_STATE
-
+#define CMD12 (0x40 + 12)
 #define CMD17 (0x40 + 17) // READ_SINGLE_BLOCK
 #define CMD24 (0x40 + 24) // WRITE_BLOCK
 #define CMD55 (0x40 + 55)
@@ -90,38 +89,49 @@ DSTATUS disk_initialize(void)
     DSTATUS stat = STA_NOINIT;
     uint8_t i, resp;
 
+    // Send CMD12 to terminate any pending transfer
+    sd_send_cmd(CMD12, 0);
+    // Send 80 dummy clocks
     SD_CS_HIGH();
-    for (i = 0; i < 10; i++)
-        spi_send(0xFF); // 80 dummy clocks
-
-    if (sd_send_cmd(CMD0, 0) == 0x01)
+    for (i = 0; i < 16; i++)
     {
-        if (sd_send_cmd(CMD8, 0x1AA) == 0x01)
+        spi_send(0xFF);
+    }
+    // Send CMD0 to enter idle state
+    while (sd_send_cmd(CMD0, 0) != 0x01)
+    {
+        // Retry until in idle state
+        SD_CS_HIGH();
+        for (i = 0; i < 10; i++)
+            spi_send(0xFF); // 80 dummy clocks
+        delay_ms(200);
+    }
+
+    if (sd_send_cmd(CMD8, 0x1AA) == 0x01)
+    {
+        // SDC Ver2+
+        for (i = 0; i < 4; i++)
+            spi_send(0xFF); // Get trailing return value of R7 resp
+        // Wait for leaving idle state (ACMD41 with HCS bit)
+        do
         {
-            // SDC Ver2+
-            for (i = 0; i < 4; i++)
-                spi_send(0xFF); // Get trailing return value of R7 resp
-            // Wait for leaving idle state (ACMD41 with HCS bit)
-            do
-            {
-                resp = sd_send_cmd(CMD55, 0);
-                resp = sd_send_cmd(ACMD41, 0x40000000);
-            } while (resp != 0x00);
-            stat = 0; // Initialization succeeded
-        }
-        else
+            resp = sd_send_cmd(CMD55, 0);
+            resp = sd_send_cmd(ACMD41, 0x40000000);
+        } while (resp != 0x00);
+        stat = 0; // Initialization succeeded
+    }
+    else
+    {
+        // SDC Ver1 or MMC
+        for (i = 0; i < 4; i++)
+            spi_send(0xFF); // Get trailing return value of R7 resp
+        // Wait for leaving idle state
+        do
         {
-            // SDC Ver1 or MMC
-            for (i = 0; i < 4; i++)
-                spi_send(0xFF); // Get trailing return value of R7 resp
-            // Wait for leaving idle state
-            do
-            {
-                resp = sd_send_cmd(CMD55, 0);
-                resp = sd_send_cmd(ACMD41, 0);
-            } while (resp != 0x00);
-            stat = 0; // Initialization succeeded
-        }
+            resp = sd_send_cmd(CMD55, 0);
+            resp = sd_send_cmd(ACMD41, 0);
+        } while (resp != 0x00);
+        stat = 0; // Initialization succeeded
     }
 
     SD_CS_HIGH();
