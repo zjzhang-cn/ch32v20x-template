@@ -107,6 +107,7 @@ DSTATUS disk_initialize(void)
                 resp = sd_send_cmd(CMD55, 0);
                 resp = sd_send_cmd(ACMD41, 0x40000000);
             } while (resp != 0x00);
+            stat = 0; // Initialization succeeded
         }
         else
         {
@@ -119,17 +120,8 @@ DSTATUS disk_initialize(void)
                 resp = sd_send_cmd(CMD55, 0);
                 resp = sd_send_cmd(ACMD41, 0);
             } while (resp != 0x00);
-        }
-        // SD card is in idle state
-        for (i = 0; i < 100; i++)
-        {
-            resp = sd_send_cmd(CMD55, 0);
-            resp = sd_send_cmd(ACMD41, 0x00000000);
-            if (resp == 0x00)
-                break;
-        }
-        if (resp == 0x00)
             stat = 0; // Initialization succeeded
+        }
     }
 
     SD_CS_HIGH();
