@@ -121,7 +121,7 @@ void FATFSTEST()
         {
             uint32_t total_bytes = 0;
             uint32_t start_time = board_millis();
-            
+
             // Read entire file
             do
             {
@@ -129,7 +129,7 @@ void FATFSTEST()
                 if (res != FR_OK)
                     break;
                 total_bytes += br;
-                
+
                 // Print first 256 bytes in hex format
                 if (total_bytes <= 256)
                 {
@@ -141,13 +141,13 @@ void FATFSTEST()
                     }
                 }
             } while (br == sizeof(buffer));
-            
-            uint32_t time_ms = board_millis()-start_time;
-            
+
+            uint32_t time_ms = board_millis() - start_time;
+
             printf("\r\n\r\n=== Read Statistics ===\r\n");
             printf("Total bytes read: %lu\r\n", total_bytes);
             printf("Time elapsed: %lu ms\r\n", time_ms);
-            
+
             if (time_ms > 0)
             {
                 uint32_t speed_kbps = (total_bytes * 1000) / (time_ms * 1024);
@@ -158,8 +158,23 @@ void FATFSTEST()
                 printf("Read speed: too fast to measure accurately\r\n");
             }
         }
-        
     }
+}
+
+static uint32_t blink_interval_ms = 1000;
+
+void led_blinking_task(void)
+{
+    static uint32_t start_ms = 0;
+    static bool led_state = false;
+
+    // Blink every interval ms
+    if (board_millis() - start_ms < blink_interval_ms)
+        return; // not enough time
+    start_ms += blink_interval_ms;
+
+    board_led_write(led_state);
+    led_state = 1 - led_state; // toggle
 }
 
 /*********************************************************************
@@ -181,7 +196,7 @@ int main(void)
     printf("This is printf example\r\n");
     // Add delay for system stabilization after power-up
     printf("System initializing...\r\n");
-    
+
     SPI1_Init(); // Initialize SPI1
 
     FATFSTEST();
@@ -189,6 +204,6 @@ int main(void)
     while (1)
     {
 
-        Delay_Ms(2000);
+        led_blinking_task();
     }
 }
