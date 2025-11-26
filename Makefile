@@ -72,14 +72,21 @@ endif
 
 ##### User Code Folder ############
 ifeq ($(USE_FREERTOS),y)
-INCLUDES	+= ch32v20x/EVT/EXAM/FreeRTOS/FreeRTOS_Core/User
-CDIRS		+= ch32v20x/EVT/EXAM/FreeRTOS/FreeRTOS_Core/User 
-ADIRS		+= ch32v20x/EVT/EXAM/FreeRTOS/FreeRTOS_Core/User
+USER_DIR	:= ch32v20x/EVT/EXAM/FreeRTOS/FreeRTOS_Core/User
+#INCLUDES	+= ch32v20x/EVT/EXAM/FreeRTOS/FreeRTOS_Core/User
+#CDIRS		+= ch32v20x/EVT/EXAM/FreeRTOS/FreeRTOS_Core/User 
+#ADIRS		+= ch32v20x/EVT/EXAM/FreeRTOS/FreeRTOS_Core/User
+INCLUDES	+= $(USER_DIR)
+CDIRS		+= $(USER_DIR) 
+ADIRS		+= $(USER_DIR)
 AFILES 		+= 
 else
-INCLUDES	+= ch32v20x/EVT/EXAM/RTC/RTC_Calendar/User
-CDIRS		+= ch32v20x/EVT/EXAM/RTC/RTC_Calendar/User
-ADIRS		+= ch32v20x/EVT/EXAM/RTC/RTC_Calendar/User
+USER_DIR	:= UserSDCard
+INCLUDES	+= $(USER_DIR) \
+			$(USER_DIR)/FATFS
+CDIRS		+= $(USER_DIR) \
+			$(USER_DIR)/FATFS
+ADIRS		+= $(USER_DIR)
 AFILES 		+= 
 endif
 
