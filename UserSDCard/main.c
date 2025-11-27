@@ -19,8 +19,6 @@
  */
 
 #include "debug.h"
-// Add SPI header if available
-#include "ch32v20x_spi.h" // Adjust if your SPI header has a different name
 #include "pff.h"          // Add this include
 #include "family.h"
 /* Global typedef */
@@ -28,47 +26,11 @@
 /* Global define */
 
 /* Global Variable */
-
-// SPI1 initialization function
-void SPI1_Init(void)
+void led_blinking_task(void)
 {
-    GPIO_InitTypeDef GPIO_InitStructure = {0};
-    SPI_InitTypeDef SPI_InitStructure = {0};
-
-    // Enable clocks
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_SPI1, ENABLE);
-
-    // SPI1 NSS pin (CS) - Initialize first and set HIGH
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
-    GPIO_SetBits(GPIOA, GPIO_Pin_3); // Set CS high immediately
-
-    // SPI1 SCK, MOSI pin configuration
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-    // SPI1 MISO pin configuration
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-    // SPI1 configuration
-    SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
-    SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
-    SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
-    SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
-    SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
-    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-    SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_8;
-    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
-    SPI_InitStructure.SPI_CRCPolynomial = 7;
-    SPI_Init(SPI1, &SPI_InitStructure);
-
-    SPI_Cmd(SPI1, ENABLE);
+    static bool led_state = false;
+    board_led_write(led_state);
+    led_state = 1 - led_state; // toggle
 }
 
 void FATFSTEST()
@@ -110,7 +72,7 @@ void FATFSTEST()
             res = pf_readdir(&dir, &fno);
             if (res != FR_OK || fno.fname[0] == 0)
                 break; // End of directory
-            printf("%s\t%d\r\n", fno.fname, fno.fsize);
+            printf("%s\t%ld\r\n", fno.fname, fno.fsize);
         }
 
         // Open and read file with speed measurement
@@ -162,12 +124,7 @@ void FATFSTEST()
     }
 }
 
-void led_blinking_task(void)
-{
-    static bool led_state = false;
-    board_led_write(led_state);
-    led_state = 1 - led_state; // toggle
-}
+
 
 /*********************************************************************
  * @fn      main
@@ -181,16 +138,13 @@ int main(void)
 {
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
     SystemCoreClockUpdate();
-    board_init();
     USART_Printf_Init(115200);
-    printf("SystemClk:%d\r\n", SystemCoreClock);
-    printf("ChipID:%08x\r\n", DBGMCU_GetCHIPID());
+    board_init();
+    printf("SystemClk:%ld\r\n", SystemCoreClock);
+    printf("ChipID:%08lx\r\n", DBGMCU_GetCHIPID());
     printf("This is printf example\r\n");
     // Add delay for system stabilization after power-up
     printf("System initializing...\r\n");
-
-    SPI1_Init();   // Initialize SPI1
-    delay_ms(100); // Wait for SD card to stabilize
     FATFSTEST();
     uint32_t blink_interval_ms = 1000;
     uint32_t start_ms = 0;

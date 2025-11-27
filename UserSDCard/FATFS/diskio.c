@@ -20,6 +20,67 @@
 #define SD_CS_HIGH() GPIO_SetBits(GPIOA, GPIO_Pin_3)
 #define SD_CS_LOW() GPIO_ResetBits(GPIOA, GPIO_Pin_3)
 
+// SPI1 initialization function
+void SPI1_Init_LOW(void)
+{
+    SPI_InitTypeDef SPI_InitStructure = {0};
+    GPIO_InitTypeDef GPIO_InitStructure = {0};
+
+    // Enable clocks
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_SPI1, ENABLE);
+
+    // SPI1 NSS pin (CS) - Initialize first and set HIGH
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    GPIO_SetBits(GPIOA, GPIO_Pin_3); // Set CS high immediately
+
+    // SPI1 SCK, MOSI pin configuration
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    // SPI1 MISO pin configuration
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    SPI_StructInit(&SPI_InitStructure);
+    // SPI1 configuration
+    SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
+    SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
+    SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
+    SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
+    SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
+    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
+    SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_256;
+    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
+    SPI_InitStructure.SPI_CRCPolynomial = 7;
+
+    SPI_Init(SPI1, &SPI_InitStructure);
+    SPI_Cmd(SPI1, ENABLE);
+}
+void SPI1_Init_HIGH(void)
+{
+    SPI_InitTypeDef SPI_InitStructure = {0};
+    SPI_StructInit(&SPI_InitStructure);
+    // SPI1 configuration
+    SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
+    SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
+    SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
+    SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
+    SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
+    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
+    SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_8;
+    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
+    SPI_InitStructure.SPI_CRCPolynomial = 7;
+    SPI_Cmd(SPI1, DISABLE);
+    SPI_Init(SPI1, &SPI_InitStructure);
+    SPI_Cmd(SPI1, ENABLE);
+}
+
 static uint8_t spi_send(uint8_t data)
 {
     while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET)
@@ -86,17 +147,21 @@ static int sd_wait_ready(void)
 
 DSTATUS disk_initialize(void)
 {
+
     DSTATUS stat = STA_NOINIT;
     uint8_t i, resp;
-
+    SPI1_Init_LOW(); // Initialize SPI1
     // Send CMD12 to terminate any pending transfer
     sd_send_cmd(CMD12, 0);
+    SD_CS_HIGH();
+    spi_send(0xFF);
     // Send 80 dummy clocks
     SD_CS_HIGH();
-    for (i = 0; i < 16; i++)
+    for (i = 0; i < 10; i++)
     {
         spi_send(0xFF);
     }
+    delay_ms(500);
     // Send CMD0 to enter idle state
     while (sd_send_cmd(CMD0, 0) != 0x01)
     {
@@ -104,7 +169,7 @@ DSTATUS disk_initialize(void)
         SD_CS_HIGH();
         for (i = 0; i < 10; i++)
             spi_send(0xFF); // 80 dummy clocks
-        delay_ms(200);
+        delay_ms(100);
     }
 
     if (sd_send_cmd(CMD8, 0x1AA) == 0x01)
@@ -119,6 +184,7 @@ DSTATUS disk_initialize(void)
             resp = sd_send_cmd(ACMD41, 0x40000000);
         } while (resp != 0x00);
         stat = 0; // Initialization succeeded
+        SPI1_Init_HIGH();
     }
     else
     {
