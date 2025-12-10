@@ -167,7 +167,8 @@ git submodule update --init --recursive
 确保当前用户在 `docker` 组中，或使用 `sudo` 运行：
 
 ```bash
-sudo ./run.sh make
+./run.sh make OPT="-DSDI_PRINT=0" clean all flash
+./run.sh wlink sdi-print enable 
 ```
 
 ### 编译错误
