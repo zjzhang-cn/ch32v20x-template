@@ -167,8 +167,15 @@ git submodule update --init --recursive
 确保当前用户在 `docker` 组中，或使用 `sudo` 运行：
 
 ```bash
+# 编译并用OpenOCD写入
 ./run.sh make OPT="-DSDI_PRINT=0" clean all flash
+# 使用wlink 通过 SW接口 写入
+./run.sh wlink flash ./Build/app.hex
 ./run.sh wlink sdi-print enable 
+# 使用ISP协议通过串口或者USB写入
+./run.sh wchisp flash ./Build/app.hex 
+#启动openocd服务
+./run.sh openocd -f /opt/openocd/bin/wch-riscv.cfg
 ```
 
 ### 编译错误
@@ -183,7 +190,81 @@ git submodule update --init --recursive
 - [WCH 官方网站](https://www.wch.cn/)
 - [OpenWCH GitHub](https://github.com/openwch)
 - [CH32V20x EVT 库](https://github.com/openwch/ch32v20x)
-
+## VSCODE devcontainer
+### Dockerfile
+```Dockerfile
+ARG DOCKER_TAG=latest
+FROM zjzhang/wch:${DOCKER_TAG}
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+CMD ["/bin/bash", "-c"]
+```
+### devcontainer.json
+```json
+{
+	"name": "WCH Development",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+    "privileged": true,
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"terminal.integrated.profiles.linux": {
+					"bash": {
+						"path": "/bin/bash"
+					}
+				}
+				
+			}
+		},
+		"extensions": [
+			"ms-vscode.cpptools-extension-pack",
+			"ms-vscode.cpptools",
+			"ms-vscode.hexeditor",
+			"marus25.cortex-debug"
+		]
+	},
+	"runArgs": [
+		"--network=host",
+	]
+}
+```
+## VSOCDE 
+### launch.json
+```json
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "cwd": "${workspaceRoot}",
+            "executable": "${workspaceRoot}/Build/app.elf",
+            "gdbPath": "riscv-wch-elf-gdb",
+            "gdbTarget": "localhost:3333",
+            "postLaunchCommands": [
+                "monitor reset halt",
+                "load"
+            ],
+            "name": "Debug with OpenOCD",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "serverpath": "openocd",
+            "configFiles": [
+                "wch-riscv.cfg"
+            ],
+            "searchDir": [],
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "raw",
+            "device": "CH32V203",
+            "toolchainPrefix": "riscv-wch-elf-",
+        }
+    ]
+}
+```
 ## 许可证
 
 本模板项目遵循 MIT 许可证。
